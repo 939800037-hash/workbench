@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Workbench">
+<title>学习工作台</title>
+<style>
+:root{
+  --bg:#0f172a;--card:#1e293b;--card2:#1a2332;--input:#0f1a2a;
+  --text:#e2e8f0;--muted:#94a3b8;--dim:#64748b;
+  --accent:#f59e0b;--accent2:#fbbf24;--accent-bg:rgba(245,158,11,0.12);
+  --green:#10b981;--green-bg:rgba(16,185,129,0.12);
+  --red:#ef4444;--red-bg:rgba(239,68,68,0.12);
+  --blue:#3b82f6;--blue-bg:rgba(59,130,246,0.12);
+  --border:rgba(148,163,184,0.08);--radius:14px;--radius-sm:10px;
+  --safe:env(safe-area-inset-bottom,12px);
+  --font:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-text-size-adjust:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100dvh;overflow-x:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
+
+.shell{max-width:640px;margin:0 auto;padding-bottom:80px;min-height:100dvh}
+.hd{padding:20px 18px 6px;position:sticky;top:0;z-index:50;background:linear-gradient(180deg,var(--bg) 65%,transparent);backdrop-filter:blur(10px)}
+.hd-date{font-size:0.8rem;color:var(--dim);letter-spacing:0.02em}
+.hd-mood{font-size:0.95rem;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:6px}
+.hd-mood .e{font-size:1.35rem}
+
+.card{background:var(--card);border-radius:var(--radius);padding:18px;margin:0 14px 14px;border:1px solid var(--border)}
+.card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.card-title{font-size:0.92rem;font-weight:600;display:flex;align-items:center;gap:7px}
+.card-tag{font-size:0.65rem;color:var(--dim);background:rgba(255,255,255,0.04);padding:3px 9px;border-radius:10px}
+
+/* Tasks */
+.task-list{list-style:none;display:flex;flex-direction:column;gap:5px}
+.task-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);background:rgba(255,255,255,0.015);transition:background .15s}
+.task-row:active{background:rgba(255,255,255,0.04)}
+.task-dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;font-size:11px;color:transparent}
+.task-dot.done{background:var(--green);border-color:var(--green);color:#fff}
+.task-txt{flex:1;font-size:0.88rem;transition:all .2s;word-break:break-word}
+.task-txt a{color:var(--blue);text-decoration:underline;text-underline-offset:3px}
+.task-txt.done{color:var(--dim);text-decoration:line-through}
+.task-txt.done a{color:var(--dim)}
+.task-link{width:28px;height:28px;border:none;background:none;color:var(--blue);font-size:0.8rem;cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:0;transition:all .15s}
+.task-row:active .task-link,.task-row:hover .task-link{opacity:1}
+.task-link:active{background:var(--blue-bg)}
+.task-x{width:26px;height:26px;border:none;background:none;color:var(--dim);font-size:1.1rem;cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0.3;transition:all .15s}
+.task-row:active .task-x,.task-row:hover .task-x{opacity:1}
+.task-x:active{background:var(--red-bg);color:var(--red)}
+.task-add-row{display:flex;gap:8px;margin-top:8px}
+.task-add-row input{flex:1;padding:10px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--input);color:var(--text);font-size:0.85rem;outline:none}
+.task-add-row input:focus{border-color:var(--accent)}
+.task-add-link-row{display:flex;gap:8px;margin-top:4px}
+.task-add-link-row input{flex:1;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--input);color:var(--text);font-size:0.75rem;outline:none}
+.task-add-link-row input:focus{border-color:var(--blue)}
+.task-add-link-row input::placeholder{color:var(--dim)}
+.btn{padding:10px 16px;border-radius:var(--radius-sm);border:none;background:var(--accent);color:#000;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s}
+.btn:active{background:var(--accent2)}
+.btn-sm{padding:6px 12px;font-size:0.75rem}
+.btn-o{background:transparent;color:var(--muted);border:1px solid var(--border)}
+
+/* Mood */
+.emoji-row{display:flex;gap:8px;justify-content:center;margin-bottom:12px;flex-wrap:wrap}
+.emoji-btn{width:42px;height:42px;border-radius:50%;border:2px solid transparent;background:rgba(255,255,255,0.03);font-size:1.3rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;user-select:none}
+.emoji-btn:active,.emoji-btn.sel{border-color:var(--accent);background:var(--accent-bg);transform:scale(1.12)}
+.mood-row{display:flex;gap:8px}
+.mood-row input{flex:1;padding:10px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--input);color:var(--text);font-size:0.85rem;outline:none}
+.mood-row input:focus{border-color:var(--accent)}
+.mood-tl{margin-top:12px;max-height:180px;overflow-y:auto}
+.mood-tl .e{display:flex;align-items:center;gap:8px;padding:6px 8px;font-size:0.78rem;color:var(--muted);border-bottom:1px solid rgba(255,255,255,0.025)}
+.mood-tl .e .t{color:var(--dim);font-size:0.68rem;white-space:nowrap}
+
+/* Voice */
+.voice{width:40px;height:40px;border-radius:50%;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:1.15rem;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.voice.live{background:var(--red-bg);color:var(--red);border-color:var(--red);animation:pls 1s infinite}
+@keyframes pls{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.3)}50%{box-shadow:0 0 0 10px rgba(239,68,68,0)}}
+
+/* Digest */
+.dig{font-size:0.82rem;line-height:1.7;color:var(--muted)}
+.dig h3{color:var(--text);font-size:0.88rem;margin:12px 0 5px}
+.dig ul{padding-left:16px;margin:4px 0}
+.dig li{margin:3px 0}
+.dig strong{color:var(--accent2)}
+.empty{text-align:center;color:var(--dim);padding:20px;font-size:0.82rem}
+
+/* Tab bar */
+.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:640px;display:flex;justify-content:space-around;align-items:center;background:rgba(15,23,42,0.92);backdrop-filter:blur(20px);border-top:1px solid var(--border);padding:6px 0 var(--safe);z-index:100}
+.tab{display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px 16px;border:none;background:none;color:var(--dim);font-size:0.6rem;cursor:pointer;transition:all .15s}
+.tab .ic{font-size:1.15rem}
+.tab.on{color:var(--accent)}
+
+/* Pages */
+.pg{display:none;padding:0 4px}
+.pg.show{display:block}
+
+/* Stats */
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 14px}
+.stat-box{background:var(--card);border-radius:var(--radius);padding:16px 10px;border:1px solid var(--border);text-align:center}
+.stat-num{font-size:1.6rem;font-weight:800;color:var(--accent);line-height:1.2}
+.stat-lbl{font-size:0.7rem;color:var(--dim);margin-top:4px}
+.chart-wrap{width:100%;height:160px;margin:10px 0}
+canvas{width:100%;height:100%}
+
+/* Settings */
+.set-section{margin-bottom:18px}
+.set-section label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px}
+.set-section input,.set-section textarea{width:100%;padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--input);color:var(--text);font-size:0.82rem;outline:none;font-family:var(--font)}
+.set-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.03);font-size:0.82rem}
+.set-row code{font-size:0.72rem;color:var(--accent);background:rgba(245,158,11,0.08);padding:4px 8px;border-radius:4px}
+
+/* Toast */
+.toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:999;background:var(--green);color:#fff;padding:10px 22px;border-radius:20px;font-size:0.82rem;font-weight:600;animation:tdIn .3s;pointer-events:none}
+@keyframes tdIn{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+.hint{font-size:0.7rem;color:var(--dim);line-height:1.5;margin-top:4px}
+
+/* ============ RESPONSIVE ============ */
+/* Phone (default) — single column */
+
+@media(max-width:380px){
+  html{font-size:15px}
+  .card{padding:14px;margin:0 8px 10px}
+  .emoji-btn{width:36px;height:36px;font-size:1.1rem}
+  .stat-num{font-size:1.3rem}
+}
+
+/* iPad Mini / tablet portrait */
+@media(min-width:641px) and (max-width:1024px){
+  .shell{max-width:100%;padding:0 12px}
+  .pg.show{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+  .pg.show .card:first-child{grid-column:1/-1}
+  .stat-grid{grid-template-columns:repeat(4,1fr)}
+  .tabs{max-width:100%}
+  .tab{padding:3px 24px}
+  html{font-size:17px}
+}
+
+/* iPad Pro / desktop */
+@media(min-width:1025px){
+  .shell{max-width:880px;padding:0 16px}
+  .pg.show{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+  .pg.show .card:first-child{grid-column:1/-1}
+  .stat-grid{grid-template-columns:repeat(4,1fr)}
+  .tabs{max-width:880px}
+  .tab{padding:3px 28px}
+  html{font-size:18px}
+}
+
+@media(max-width:640px) and (orientation:landscape){
+  .shell{max-width:100%}
+  .tabs{max-width:100%}
+  .card{margin:0 8px 8px;padding:14px}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <header class="hd">
+    <div class="hd-date" id="hdDate"></div>
+    <div class="hd-mood" id="hdMood">...</div>
+  </header>
+
+  <!-- ===== Home ===== -->
+  <section class="pg show" id="pg-home">
+    <!-- Tasks -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">📋 今日任务</span>
+        <span class="card-tag" id="taskPct">0/0</span>
+      </div>
+      <ul class="task-list" id="taskList"></ul>
+      <div class="task-add-row">
+        <input type="text" id="taskInp" placeholder="新任务...">
+      </div>
+      <div class="task-add-link-row">
+        <input type="text" id="taskLinkInp" placeholder="🔗 链接（可选，如 https://...）">
+        <button class="btn btn-sm" id="taskAddBtn">添加</button>
+      </div>
+    </div>
+
+    <!-- Mood -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">💭 此刻心情</span>
+        <span class="card-tag" id="moodCnt">今日 0</span>
+      </div>
+      <div class="emoji-row">
+        <span class="emoji-btn" data-m="😊">😊</span><span class="emoji-btn" data-m="😌">😌</span>
+        <span class="emoji-btn" data-m="😐">😐</span><span class="emoji-btn" data-m="🤩">🤩</span>
+        <span class="emoji-btn" data-m="😤">😤</span><span class="emoji-btn" data-m="😢">😢</span>
+        <span class="emoji-btn" data-m="😴">😴</span><span class="emoji-btn" data-m="🥳">🥳</span>
+      </div>
+      <div class="mood-row">
+        <input type="text" id="moodInp" placeholder="此刻想说的话（可选）...">
+        <button class="voice" id="moodVoice" title="语音输入">🎤</button>
+        <button class="btn" id="moodSubmit">记录</button>
+      </div>
+      <div class="mood-tl" id="moodTL"></div>
+    </div>
+  </section>
+
+  <!-- ===== Push ===== -->
+  <section class="pg" id="pg-push">
+    <div class="card">
+      <div class="card-head"><span class="card-title">🔥 热点·案例转换</span></div>
+      <div class="dig" id="pushNews"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">🏛 政策梳理</span></div>
+      <div class="dig" id="pushPolicy"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">📝 Obsidian 学习更新</span></div>
+      <div class="dig" id="pushObsidian"></div>
+    </div>
+  </section>
+
+  <!-- ===== Stats ===== -->
+  <section class="pg" id="pg-stats">
+    <div class="stat-grid">
+      <div class="stat-box"><div class="stat-num" id="stTasks">0</div><div class="stat-lbl">完成任务</div></div>
+      <div class="stat-box"><div class="stat-num" id="stRate">0%</div><div class="stat-lbl">完成率</div></div>
+      <div class="stat-box"><div class="stat-num" id="stMoods">0</div><div class="stat-lbl">心情记录</div></div>
+      <div class="stat-box"><div class="stat-num" id="stDays">0</div><div class="stat-lbl">活跃天数</div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">📈 近7天任务趋势</span></div>
+      <div class="chart-wrap"><canvas id="chartTasks"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">💟 近7天心情分布</span></div>
+      <div class="chart-wrap"><canvas id="chartMoods"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ===== Settings ===== -->
+  <section class="pg" id="pg-set">
+    <div class="card">
+      <div class="card-head"><span class="card-title">📋 每日任务模板</span></div>
+      <div class="set-section">
+        <textarea id="tmplInp" rows="5" placeholder="每行一个任务..."></textarea>
+        <button class="btn btn-sm" id="tmplSave" style="margin-top:8px">保存模板</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">📂 数据管理</span></div>
+      <div class="set-section">
+        <p class="hint">导出数据备份，或导入到其他设备</p>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-sm" id="exportBtn">导出</button>
+          <button class="btn btn-sm btn-o" id="importBtn">导入</button>
+          <input type="file" id="importFile" accept=".json" style="display:none">
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">📡 同步说明</span></div>
+      <div class="dig">
+        <p>数据存在本地浏览器中，无需电脑开机。</p>
+        <p class="hint">每天早上这里生成完推送写入服务器，面板自动拉取。</p>
+      </div>
+    </div>
+  </section>
+
+  <nav class="tabs">
+    <button class="tab on" data-pg="home"><span class="ic">🏠</span>首页</button>
+    <button class="tab" data-pg="push"><span class="ic">📡</span>推送</button>
+    <button class="tab" data-pg="stats"><span class="ic">📊</span>统计</button>
+    <button class="tab" data-pg="set"><span class="ic">⚙</span>设置</button>
+  </nav>
+</div>
+
+<script>
+// ===== DB =====
+const DB={_db:null,
+  open(){return new Promise((ok,no)=>{const r=indexedDB.open('wb',4);r.onupgradeneeded=e=>{const d=e.target.result;if(!d.objectStoreNames.contains('tasks'))d.createObjectStore('tasks',{keyPath:'date'});if(!d.objectStoreNames.contains('moods'))d.createObjectStore('moods',{keyPath:'id',autoIncrement:true});if(!d.objectStoreNames.contains('digests'))d.createObjectStore('digests',{keyPath:'date'});if(!d.objectStoreNames.contains('tmpl'))d.createObjectStore('tmpl',{keyPath:'k'});};r.onsuccess=()=>{this._db=r.result;ok()};r.onerror=()=>no(r.error)})},
+  tx(s,m){return this._db.transaction(s,m||'readonly').objectStore(s)},
+  p(r){return new Promise((ok,no)=>{r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})},
+  async set(s,k,v){await this.p(this.tx(s,'readwrite').put(v))},
+  async get(s,k){return this.p(this.tx(s).get(k))},
+  async all(s){return this.p(this.tx(s).getAll())},
+};
+async function boot(){await DB.open();loadTmpl();App.init()}
+function T(){const d=new Date();return d.getFullYear()+'-'+S(d.getMonth()+1)+'-'+S(d.getDate())}
+function S(n){return String(n).padStart(2,'0')}
+
+// ===== Template =====
+let tmplTasks=['复习Obsidian数据库','阅读文章 x2','整理学习笔记','查看今日推送','记录心情 >=2次'];
+async function loadTmpl(){const r=await DB.get('tmpl','tasks');if(r)tmplTasks=r.v}
+async function saveTmpl(){await DB.set('tmpl',{k:'tasks',v:tmplTasks});toast('已保存')}
+
+// ===== App =====
+const App={
+  curTab:'home',selEmoji:null,
+  async init(){
+    document.getElementById('hdDate').textContent=new Date().toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+    this.loadTasks();this.loadMoods();this.refreshHeader();
+    this.loadDigest();this.loadObsidian();
+    this.initTabs();this.initVoice();this.seedDigestIfNeeded();
+    this.autoSync();
+    document.getElementById('tmplInp').value=tmplTasks.join('\n');
+    document.getElementById('tmplSave').onclick=async()=>{tmplTasks=document.getElementById('tmplInp').value.split('\n').map(s=>s.trim()).filter(s=>s);await saveTmpl();await this.loadTasks()};
+    document.getElementById('exportBtn').onclick=()=>this.exportData();
+    document.getElementById('importBtn').onclick=()=>document.getElementById('importFile').click();
+    document.getElementById('importFile').onchange=(e)=>this.importData(e.target.files[0]);
+    setInterval(()=>this.autoSync(),60000);
+  },
+  initTabs(){
+    document.querySelectorAll('.tab').forEach(b=>{
+      b.onclick=()=>{
+        this.curTab=b.dataset.pg;
+        document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));
+        document.querySelectorAll('.pg').forEach(p=>p.classList.toggle('show',p.id==='pg-'+this.curTab));
+        if(this.curTab==='stats')this.loadStats();
+        if(this.curTab==='push'){this.loadDigest();this.loadObsidian()}
+      };
+    });
+  },
+  initVoice(){
+    Voice.init();
+    document.getElementById('moodInp').onkeydown=e=>{if(e.key==='Enter')this.submitMood()};
+  },
+
+  // ===== Tasks =====
+  async loadTasks(){
+    const d=T();let row=await DB.get('tasks',d);
+    if(!row||!row.list){row={date:d,list:tmplTasks.map(t=>({text:t,done:false,url:''}))};await DB.set('tasks',row)}
+    this.renderTasks(row.list)
+  },
+  renderTasks(list){
+    const el=document.getElementById('taskList');
+    const dn=list.filter(t=>t.done).length;
+    document.getElementById('taskPct').textContent=dn+'/'+list.length;
+    el.innerHTML=list.map((t,i)=>`<li class="task-row">
+      <div class="task-dot ${t.done?'done':''}" onclick="App.toggle(${i})">${t.done?'✓':''}</div>
+      <span class="task-txt ${t.done?'done':''}">
+        ${t.url?`<a href="${escUrl(t.url)}" target="_blank" onclick="event.stopPropagation()">${esc(t.text)}</a>`:esc(t.text)}
+      </span>
+      ${t.url?'<button class="task-link" onclick="event.stopPropagation();window.open(\''+escUrl(t.url)+'\',\'_blank\')" title="打开链接">🔗</button>':''}
+      <button class="task-x" onclick="App.del(${i})">&times;</button>
+    </li>`).join('')
+  },
+  async toggle(i){const r=await DB.get('tasks',T());if(!r)return;r.list[i].done=!r.list[i].done;await DB.set('tasks',r);this.renderTasks(r.list)},
+  async del(i){const r=await DB.get('tasks',T());if(!r)return;r.list.splice(i,1);await DB.set('tasks',r);this.renderTasks(r.list)},
+  async addTask(text,url){
+    const r=await DB.get('tasks',T())||{date:T(),list:[]};
+    r.list.push({text:text,done:false,url:url||''});await DB.set('tasks',r);
+    this.renderTasks(r.list)
+  },
+
+  // ===== Mood =====
+  async loadMoods(){
+    const ms=await DB.all('moods');const today=ms.filter(m=>m.date===T());
+    document.getElementById('moodCnt').textContent='今日 '+today.length;
+    const el=document.getElementById('moodTL');
+    if(today.length===0){el.innerHTML='<div style="text-align:center;color:var(--dim);padding:8px;font-size:0.78rem">选个 emoji，记录此刻的心情</div>'}
+    else{el.innerHTML=today.reverse().map(m=>`<div class="e"><span style="font-size:1.15rem">${m.emoji}</span><span style="flex:1">${esc(m.note||'')}</span><span class="t">${fmtTime(m.time)}</span></div>`).join('')}
+    this.refreshHeader()
+  },
+  async submitMood(){
+    const em=this.selEmoji||'😐';const inp=document.getElementById('moodInp');const n=inp.value.trim();
+    await DB.set('moods',{date:T(),emoji:em,note:n,time:new Date().toISOString()});
+    inp.value='';document.querySelectorAll('.emoji-btn').forEach(x=>x.classList.remove('sel'));
+    this.selEmoji=null;this.loadMoods();toast('心情已记录')
+  },
+  async refreshHeader(){
+    const ms=await DB.all('moods');const today=ms.filter(m=>m.date===T());const last=today[today.length-1];
+    document.getElementById('hdMood').innerHTML=last?`<span class="e">${last.emoji}</span> ${last.note||'今日已记录'}`:'选个 emoji 记录今天的心情吧'
+  },
+
+  // ===== Digest =====
+  async seedDigestIfNeeded() {
+    var r = await DB.get('digests', T());
+    if (!r || !r.news) {
+      if (typeof BUILTIN_DIGEST !== 'undefined') {
+        var bd = BUILTIN_DIGEST[T()];
+        if (!bd) {
+          for (var i = 0; i < 30; i++) { var pd = new Date(); pd.setDate(pd.getDate() - i); var pds = App.T(pd); if (BUILTIN_DIGEST[pds]) { bd = BUILTIN_DIGEST[pds]; break; } }
+        }
+        if (bd) await DB.set('digests', { date: T(), news: bd.news, policy: bd.policy || '' });
+      }
+    }
+    this.loadDigest();
+  },
+  async loadDigest(){
+    const r=await DB.get('digests',T());
+    const n=document.getElementById('pushNews');
+    const p=document.getElementById('pushPolicy');
+    if(r&&r.news){n.innerHTML=md(r.news);p.innerHTML=md(r.policy||'')}
+    else{
+      // 预加载上次我写的推送
+      n.innerHTML='<div class="empty"><p>推送尚未生成</p><p class="hint">每天由 Claude Code 生成内容，打开面板时自动同步</p></div>';
+      p.innerHTML='<div class="empty"><p>等待同步...</p></div>'
+    }
+  },
+  async loadObsidian(){
+    const r=await DB.get('digests','obsidian');
+    document.getElementById('pushObsidian').innerHTML=r&&r.content?md(r.content):'<div class="empty"><p>等待 Obsidian 扫描...</p><p class="hint">电脑开机时自动扫描前一天修改的笔记</p></div>'
+  },
+
+  // ===== Stats =====
+  async loadStats(){
+    const ms=await DB.all('moods');const tasks=await DB.all('tasks');const now=new Date();
+    let done=0,total=0,dates=new Set();const wd=[];
+    for(let i=6;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);const ds=this.T(d);const td=tasks.find(t=>t.date===ds);const md=ms.filter(m=>m.date===ds);const e={date:ds,label:S(d.getMonth()+1)+'/'+S(d.getDate()),tasksTotal:td?td.list.length:0,tasksDone:td?td.list.filter(x=>x.done).length:0,moods:md.length};wd.push(e);done+=e.tasksDone;total+=e.tasksTotal;if(md.length>0||(td&&td.list.length>0))dates.add(ds)}
+    document.getElementById('stTasks').textContent=done;
+    document.getElementById('stRate').textContent=(total>0?Math.round(done/total*100):0)+'%';
+    document.getElementById('stMoods').textContent=wd.reduce((s,x)=>s+x.moods,0);
+    document.getElementById('stDays').textContent=dates.size;
+    this.drawTasksChart(wd);this.drawMoodsChart(ms,now)
+  },
+  T(d){return d.getFullYear()+'-'+S(d.getMonth()+1)+'-'+S(d.getDate())},
+  drawTasksChart(data){
+    const c=document.getElementById('chartTasks');if(!c)return;const ctx=c.getContext('2d');const W=c.parentElement.clientWidth,H=160;c.width=W*2;c.height=H*2;c.style.width=W+'px';c.style.height=H+'px';ctx.scale(2,2);
+    const mh=Math.max(...data.map(d=>d.tasksTotal),1);
+    data.forEach((d,i)=>{const x=i*(W/7)+10,w=(W/7)-16;ctx.fillStyle='rgba(59,130,246,0.15)';ctx.fillRect(x,H-10,w,-(d.tasksTotal/mh*(H-30)));ctx.fillStyle='#3b82f6';ctx.fillRect(x,H-10,w,-(d.tasksDone/mh*(H-30)));ctx.fillStyle='#64748b';ctx.font='9px system-ui';ctx.textAlign='center';ctx.fillText(d.label,x+w/2,H-2)})
+  },
+  drawMoodsChart(ms,now){
+    const c=document.getElementById('chartMoods');if(!c)return;const ctx=c.getContext('2d');const W=c.parentElement.clientWidth,H=160;c.width=W*2;c.height=H*2;c.style.width=W+'px';c.style.height=H+'px';ctx.scale(2,2);
+    const emojis=['😊','😌','😐','🤩','😤','😢','😴','🥳'];const counts={};emojis.forEach(e=>counts[e]=0);
+    for(let i=6;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);ms.filter(m=>m.date===this.T(d)).forEach(m=>{if(counts[m.emoji]!==undefined)counts[m.emoji]++})}
+    const vals=emojis.map(e=>({emoji:e,count:counts[e]})).filter(v=>v.count>0);
+    if(vals.length===0){ctx.fillStyle='#64748b';ctx.font='14px system-ui';ctx.textAlign='center';ctx.fillText('暂无数据',W/2,H/2);return}
+    const total=vals.reduce((s,v)=>s+v.count,0);let cx=0;const colors=['#f59e0b','#10b981','#94a3b8','#8b5cf6','#ef4444','#3b82f6','#ec4899','#14b8a6'];
+    vals.forEach((v,i)=>{const bw=(v.count/total)*(W-20);ctx.fillStyle=colors[i%colors.length];ctx.fillRect(cx+10,40,bw,60);ctx.fillStyle='#e2e8f0';ctx.font='11px system-ui';ctx.textAlign='center';ctx.fillText(v.emoji+' '+v.count,cx+10+bw/2,H-10);cx+=bw})
+  },
+
+  // ===== Sync =====
+  async autoSync(){
+    try{
+      // 同步推送
+      const dr=await fetch('/api/digests?date='+T(),{signal:AbortSignal.timeout(3000)});
+      if(dr.ok){const d=await dr.json();if(d&&d.content){const s=this.splitD(d.content);await DB.set('digests',{date:T(),news:s.news,policy:s.policy})}}
+      // 同步 obsidian
+      const or=await fetch('/api/obsidian',{signal:AbortSignal.timeout(3000)});
+      if(or.ok){const o=await or.json();if(o&&o.content)await DB.set('digests',{date:'obsidian',content:o.content})}
+      // 更新 UI
+      if(this.curTab==='push'){this.loadDigest();this.loadObsidian()}
+    }catch{}
+  },
+  splitD(md){
+    const n=md.match(/##\s*🔥[^\n]*\n([\s\S]*?)(?=##\s*🏛|$)/);
+    const p=md.match(/##\s*🏛[^\n]*\n([\s\S]*?)(?=##|$)/);
+    return {news:n?n[1]:'',policy:p?p[1]:''}
+  },
+
+  // ===== Export/Import =====
+  async exportData(){
+    const tasks=await DB.all('tasks');const moods=await DB.all('moods');const digests=await DB.all('digests');
+    const blob=new Blob([JSON.stringify({tasks,moods,digests,tmpl:tmplTasks},null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='workbench-data.json';a.click();toast('已导出')
+  },
+  importData(file){
+    if(!file)return;const r=new FileReader();r.onload=async e=>{
+      try{const data=JSON.parse(e.target.result);if(data.tasks)for(const t of data.tasks)await DB.set('tasks',t);if(data.moods)for(const m of data.moods)await DB.set('moods',m);if(data.digests)for(const d of data.digests)await DB.set('digests',d);if(data.tmpl){tmplTasks=data.tmpl;await saveTmpl();document.getElementById('tmplInp').value=tmplTasks.join('\n')}toast('已导入');this.loadTasks();this.loadMoods();this.loadDigest()}catch{toast('导入失败')}
+    };r.readAsText(file)
+  },
+};
+
+// ===== Voice (心情专用) =====
+const Voice={
+  rec:null,listening:false,
+  init(){
+    const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return;
+    this.rec=new R();this.rec.lang='zh-CN';this.rec.interimResults=true;this.rec.continuous=false;
+    this.rec.onresult=e=>{
+      let t='';for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript;
+      const inp=document.getElementById('moodInp');if(inp)inp.value=t;
+      if(e.results[e.results.length-1].isFinal){this.stop();document.getElementById('moodVoice').classList.remove('live')}
+    };
+    this.rec.onerror=e=>{this.stop();document.getElementById('moodVoice').classList.remove('live');
+      if(e.error==='not-allowed')alert('请在浏览器设置中允许麦克风权限')};
+    this.rec.onend=()=>{this.stop();document.getElementById('moodVoice').classList.remove('live')};
+  },
+  start(){
+    if(!this.rec){alert('当前浏览器不支持语音识别');return}
+    this.listening=true;this.rec.start();
+    document.getElementById('moodVoice').classList.add('live');
+    const inp=document.getElementById('moodInp');if(inp)inp.placeholder='🎙️ 正在聆听...';
+  },
+  stop(){
+    if(!this.rec)return;try{this.rec.stop()}catch{}this.listening=false;
+    const inp=document.getElementById('moodInp');if(inp)inp.placeholder='此刻想说的话（可选）...';
+  },
+};
+
+// ===== Utils =====
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function escUrl(s){return s.replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function fmtTime(iso){try{return new Date(iso).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}catch{return''}}
+function toast(m){const old=document.querySelector('.toast');if(old)old.remove();const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2000)}
+function md(t){if(!t)return'';return'<div class="dig">'+t.replace(/^### (.+)/gm,'<h3>$1</h3>').replace(/^## (.+)/gm,'<h2>$1</h2>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/^- (.+)/gm,'<li>$1</li>').replace(/((?:<li>.*<\/li>\n?)+)/g,'<ul>$1</ul>').replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>')+'</div>'}
+
+// Emoji click
+document.addEventListener('click',e=>{if(e.target.classList.contains('emoji-btn')){document.querySelectorAll('.emoji-btn').forEach(x=>x.classList.remove('sel'));e.target.classList.add('sel');App.selEmoji=e.target.dataset.m}});
+
+// Voice button
+document.getElementById('moodVoice').onclick=()=>{if(Voice.listening)Voice.stop();else Voice.start()};
+
+// Task add
+document.getElementById('taskAddBtn').onclick=()=>{
+  const txt=document.getElementById('taskInp').value.trim();
+  if(!txt)return;
+  const url=document.getElementById('taskLinkInp').value.trim();
+  App.addTask(txt,url);
+  document.getElementById('taskInp').value='';
+  document.getElementById('taskLinkInp').value='';
+};
+document.getElementById('taskInp').onkeydown=e=>{if(e.key==='Enter'){document.getElementById('taskLinkInp').focus();e.preventDefault()}};
+document.getElementById('taskLinkInp').onkeydown=e=>{if(e.key==='Enter')document.getElementById('taskAddBtn').click()};
+
+// Mood submit
+document.getElementById('moodSubmit').onclick=()=>{if(!App.selEmoji)App.selEmoji='😐';App.submitMood()};
+
+boot();
+</script>
+  <script src="/js/digest-data.js"></script>
+</body>
+</html>
