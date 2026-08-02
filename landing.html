@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>学习工作台</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0f172a;overflow:hidden}
+iframe{width:100%;height:100vh;border:none}
+.fallback{color:#e2e8f0;font-family:system-ui;padding:30px;text-align:center}
+.fallback a{color:#f59e0b;font-size:1.2rem}
+</style>
+</head>
+<body>
+<script>
+// 两个 URL 都试试，哪个通就显示哪个
+var urls = [
+  'https://raw.githubusercontent.com/939800037-hash/workbench/main/index.html',
+  'https://cdn.jsdelivr.net/gh/939800037-hash/workbench@main/index.html'
+];
+
+function tryLoad(i) {
+  if (i >= urls.length) {
+    // 都不通，显示直链
+    document.body.innerHTML = '<div class="fallback"><h2>请直接访问:</h2><br><a href="'+urls[0]+'">'+urls[0]+'</a></div>';
+    return;
+  }
+  var iframe = document.createElement('iframe');
+  iframe.src = urls[i];
+  iframe.style.display = 'none';
+  iframe.onload = function() {
+    iframe.style.display = 'block';
+    document.body.appendChild(iframe);
+  };
+  iframe.onerror = function() { tryLoad(i + 1); };
+  document.body.appendChild(iframe);
+  // 2秒还没加载就换下一个
+  setTimeout(function() { if (iframe.style.display === 'none') tryLoad(i + 1); }, 3000);
+}
+tryLoad(0);
+</script>
+</body>
+</html>
