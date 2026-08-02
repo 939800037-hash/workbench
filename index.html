@@ -276,6 +276,97 @@ canvas{width:100%;height:100%}
 </div>
 
 <script>
+// ===== GitHub Sync API =====
+var GHSync = {
+  repo: '939800037-hash/workbench',
+  token: localStorage.getItem('gh_token')||'',
+  base: 'https://api.github.com',
+  headers: function() { return {Authorization:'Bearer '+this.token, Accept:'application/vnd.github+json','User-Agent':'Workbench'}; },
+  
+  checkToken: function() { if (!this.token) { var t = prompt('请输入 GitHub Token (仅需一次，存本地):'); if (t) { localStorage.setItem('gh_token', t); this.token = t; } } return !!this.token; },
+
+  // 读取文件内容
+  async readFile(path) {
+    try {
+      var r = await fetch(this.base+'/repos/'+this.repo+'/contents/'+path, {headers:this.headers()});
+      if (!r.ok) return null;
+      var d = await r.json();
+      return d.content ? JSON.parse(decodeURIComponent(escape(atob(d.content)))) : null;
+    } catch(e) { return null; }
+  },
+
+  // 写入文件 (blob → tree → commit → ref)
+  async writeFile(path, content, msg) {
+    try {
+      var h = this.headers();
+      // 1. 获取最新 commit
+      var refResp = await fetch(this.base+'/repos/'+this.repo+'/git/ref/heads/main', {headers:h});
+      if (!refResp.ok) return false;
+      var refData = await refResp.json();
+      var commitSha = refData.object.sha;
+      var commitResp = await fetch(this.base+'/repos/'+this.repo+'/git/commits/'+commitSha, {headers:h});
+      if (!commitResp.ok) return false;
+      var commitData = await commitResp.json();
+      var baseTree = commitData.tree.sha;
+
+      // 2. 检查文件是否已存在（用于获取 sha 做覆盖）
+      var existingSha = null;
+      try {
+        var existResp = await fetch(this.base+'/repos/'+this.repo+'/contents/'+path, {headers:h});
+        if (existResp.ok) { var ed = await existResp.json(); existingSha = ed.sha; }
+      } catch(e) {}
+
+      // 3. 创建 blob (base64 编码)
+      var jsonStr = JSON.stringify(content);
+      var b64 = btoa(unescape(encodeURIComponent(jsonStr)));
+      var blobResp = await fetch(this.base+'/repos/'+this.repo+'/git/blobs', {method:'POST',headers:h,body:JSON.stringify({content:b64,encoding:'base64'})});
+      if (!blobResp.ok) return false;
+      var blobSha = (await blobResp.json()).sha;
+
+      // 4. 创建 tree（覆盖模式）
+      var parents = [commitSha];
+      var treeBody = {base_tree:baseTree, tree:[{path:path, mode:'100644', type:'blob', sha:blobSha}]};
+      if (existingSha) { treeBody.tree[0]; /* same structure */ }
+      var treeResp = await fetch(this.base+'/repos/'+this.repo+'/git/trees', {method:'POST',headers:h,body:JSON.stringify(treeBody)});
+      if (!treeResp.ok) return false;
+      var newTreeSha = (await treeResp.json()).sha;
+
+      // 5. 创建 commit
+      var commitBody = {message:msg||('sync: '+path), tree:newTreeSha, parents:parents};
+      var newCommitResp = await fetch(this.base+'/repos/'+this.repo+'/git/commits', {method:'POST',headers:h,body:JSON.stringify(commitBody)});
+      if (!newCommitResp.ok) return false;
+      var newCommitSha = (await newCommitResp.json()).sha;
+
+      // 6. 更新 ref
+      var refBody = {sha:newCommitSha, force:true};
+      var updateResp = await fetch(this.base+'/repos/'+this.repo+'/git/refs/heads/main', {method:'PATCH',headers:h,body:JSON.stringify(refBody)});
+      return updateResp.ok;
+    } catch(e) { return false; }
+  },
+
+  // 同步 tasks
+  async syncTasks(date, tasks) { if (!this.checkToken()) return; {
+    var path = 'data/tasks/'+date+'.json';
+    return await this.writeFile(path, tasks, 'sync: tasks '+date);
+  },
+  
+  // 同步 moods (append to JSONL)
+  async syncMoods(date, moods) {
+    var path = 'data/moods/'+date+'.json';
+    return await this.writeFile(path, moods, 'sync: moods '+date);
+  },
+
+  // 获取远程 tasks
+  async getTasks(date) {
+    return await this.readFile('data/tasks/'+date+'.json');
+  },
+
+  // 获取远程 moods
+  async getMoods(date) {
+    return await this.readFile('data/moods/'+date+'.json');
+  }
+};
+
 // ===== DB =====
 const DB={_db:null,
   open(){return new Promise((ok,no)=>{const r=indexedDB.open('wb',4);r.onupgradeneeded=e=>{const d=e.target.result;if(!d.objectStoreNames.contains('tasks'))d.createObjectStore('tasks',{keyPath:'date'});if(!d.objectStoreNames.contains('moods'))d.createObjectStore('moods',{keyPath:'id',autoIncrement:true});if(!d.objectStoreNames.contains('digests'))d.createObjectStore('digests',{keyPath:'date'});if(!d.objectStoreNames.contains('tmpl'))d.createObjectStore('tmpl',{keyPath:'k'});};r.onsuccess=()=>{this._db=r.result;ok()};r.onerror=()=>no(r.error)})},
@@ -301,6 +392,8 @@ const App={
     document.getElementById('hdDate').textContent=new Date().toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
     this.loadTasks();this.loadMoods();this.refreshHeader();
     this.loadDigest();this.loadObsidian();
+// 从 GitHub 拉取最新数据合并到本地
+var today=T();GHSync.getTasks(today).then(function(remote){if(remote&&remote.length>0){DB.get('tasks',today).then(function(local){if(!local||!local.list||local.list.length===0){DB.set('tasks',{date:today,list:remote});App.loadTasks()}})}}).catch(function(){});GHSync.getMoods(today).then(function(remote){if(remote&&remote.length>0){DB.get('moods',today).then(function(local){if(!local||local.length===0){remote.forEach(function(m){DB.set('moods',m)});App.loadMoods()}})}}).catch(function(){});
     this.initTabs();this.initVoice();this.seedDigestIfNeeded();
     this.autoSync();
     document.getElementById('tmplInp').value=tmplTasks.join('\n');
@@ -519,6 +612,6 @@ document.getElementById('moodSubmit').onclick=()=>{if(!App.selEmoji)App.selEmoji
 
 boot();
 </script>
-  <script src="https://raw.githubusercontent.com/939800037-hash/workbench/main/js/digest-data.js"></script>
+  <script src="/js/digest-data.js"></script>
 </body>
 </html>
